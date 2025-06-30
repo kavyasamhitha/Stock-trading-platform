@@ -1,0 +1,236 @@
+package com.packages.importexample;
+import java.util.Map;
+import java.util.HashMap;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Scanner;
+
+
+ class Stock {
+	String symbol;
+	String name;
+	double price;
+	public Stock(String symbol,String name,double price) {
+		this.symbol=symbol;
+		this.name=name;
+		this.price=price;
+	}
+	public String getSymbol() {   
+		return symbol;
+	}
+	public String getName() {
+		return name;
+	}
+	public double getPrice() {
+		return price;
+	}
+	public void setPrice(double price) {    // update stock's price
+		this.price=price;
+	}
+	@Override
+	public String toString() {
+		return "Stock symbol :"+symbol+", Name :" +name+" , price : "+price;
+	}
+	
+
+}
+ class User {
+	 private String username;
+	 private double balance;
+	 private Portfolio portfolio;
+	 public User(String username,double balance) {
+		 this.username=username;
+		 this.balance=balance;
+		 this.portfolio=new Portfolio();
+	 }
+	 public Portfolio getPortfolio() {
+		 return portfolio;
+	 }
+	 public String getUsername() {
+		 return username;
+	 }
+	 public double getBalance() {
+		 return balance;
+	 }
+	 public void setBalance(double balance) {
+		 this.balance=balance;
+	 }
+	
+ }
+ class Portfolio {
+	    private Map<String, Integer> holdings=new HashMap<>();    // empty portfolio,when new user is created ,their portfolio starts empty.
+	    public void buy(String symbol, int quantity) {
+	       if(holdings.containsKey(symbol)) {
+	    	   int existquantity=holdings.get(symbol);       
+	    	   holdings.put(symbol,existquantity+quantity);
+	       }else {
+	    	   holdings.put(symbol,quantity);
+	       }
+	    }
+	    public boolean sell(String symbol, int quantity) {
+	        if (holdings.containsKey(symbol) && holdings.get(symbol) >= quantity) {
+	            holdings.put(symbol, holdings.get(symbol) - quantity);
+	            if (holdings.get(symbol) == 0) {   // if the stock's quantity is zero after sold then remove the stock
+	            	holdings.remove(symbol);
+	            return true;}
+	        }
+	        return false;
+	    }
+	    public Map<String, Integer> getHoldings() {  // it contains user's stock portfolio 
+	        return holdings;    // it returns stock and its shares
+	    }
+
+	    public void displayPortfolio(Market market) {
+	        System.out.println("Your Portfolio:");
+	        for (String symbol : holdings.keySet()) {
+	            int quantity = holdings.get(symbol);
+	            Stock stock = market.getStock(symbol); 
+	            if (stock != null) {
+	                double value = quantity * stock.getPrice();   // stock.getPrice()  gets the current price per share
+	                System.out.printf("%s: %d shares, Value: $%.2f%n", symbol, quantity, value);
+	            }
+	        }
+	    }
+	}
+  class Market {
+	    private Map<String, Stock> stocks;
+	    public Market() {
+	        stocks = new HashMap<>();
+	        // Sample data
+	        stocks.put("AAPL", new Stock("AAPL", "Apple", 150));
+	        stocks.put("GOOG", new Stock("GOOG", "Google", 2800));
+	        stocks.put("TSLA", new Stock("TSLA", "Tesla", 700));
+	    }
+
+	    public Stock getStock(String symbol) {
+	        return stocks.get(symbol);
+	    }
+
+	    public void displayMarket() {
+	        System.out.println("Market Data:");
+	        for (Stock stock : stocks.values()) {
+	            System.out.println(stock);
+	        }
+	    }
+	}
+   class Transaction {
+	    public static boolean buyStock(User user, Stock stock, int quantity) {
+	        double totalCost = stock.getPrice() * quantity;
+	        if (user.getBalance() >= totalCost) {
+	            user.setBalance(user.getBalance() - totalCost);
+	            user.getPortfolio().buy(stock.getSymbol(), quantity);
+	            return true;
+	        }
+	        return false;
+	    }
+	    public static boolean sellStock(User user, Stock stock, int quantity) {
+	        if (user.getPortfolio().sell(stock.getSymbol(), quantity)) {
+	            user.setBalance(user.getBalance() + stock.getPrice() * quantity);
+	            return true;
+	        }
+	        return false;
+	    }
+	}
+    class DataHandler {
+	    public static void saveUser(User user, String filename) throws IOException {
+	        BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
+	        writer.write(user.getUsername() + "," + user.getBalance());
+	        writer.newLine();
+	        for (Map.Entry<String, Integer> entry : user.getPortfolio().getHoldings().entrySet()) {
+	            writer.write(entry.getKey() + "," + entry.getValue());
+	            writer.newLine();
+	        }
+	        writer.close();
+	    }
+	    static User loadUser(String filename, Market market) throws IOException {
+	        BufferedReader reader = new BufferedReader(new FileReader(filename));
+	        String[] userLine = reader.readLine().split(",");
+	        User user = new User(userLine[0], Double.parseDouble(userLine[1]));
+
+	        String line;
+	        while ((line = reader.readLine()) != null) {
+	            String[] parts = line.split(",");
+	            user.getPortfolio().buy(parts[0], Integer.parseInt(parts[1]));
+	        }
+	        reader.close();
+	        return user;
+	    }
+	}
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        Market market = new Market();
+        User user = new User("Keerthi", 10000);
+
+        while (true) {
+            System.out.println("\n1. View Market");
+            System.out.println("2. Buy Stock");
+            System.out.println("3. Sell Stock");
+            System.out.println("4. View Portfolio");
+            System.out.println("5. Save & Exit");
+            System.out.print("Choose an option: ");
+            int choice = sc.nextInt();
+
+            switch (choice) {
+                case 1: market.displayMarket();
+                        break;
+                case 2:System.out.print("Enter symbol to buy: ");
+                       String symbolBuy = sc.next();
+                       Stock stockBuy = market.getStock(symbolBuy);
+                    if (stockBuy != null) {
+                        System.out.print("Enter quantity: ");
+                        int qtyBuy = sc.nextInt();
+                        if (Transaction.buyStock(user, stockBuy, qtyBuy)) {
+                            System.out.println("Purchase successful.");
+                        } else {
+                            System.out.println("Insufficient balance.");
+                        }
+                    } else {
+                        System.out.println("Stock not found.");
+                    }
+                    break;
+                case 3:
+                    System.out.print("Enter symbol to sell: ");
+                    String symbolSell = sc.next();
+                    Stock stockSell = market.getStock(symbolSell);
+                    if (stockSell != null) {
+                        System.out.print("Enter quantity: ");
+                        int qtySell = sc.nextInt();
+                        if (Transaction.sellStock(user, stockSell, qtySell)) {
+                            System.out.println("Sale successful.");
+                        } else {
+                            System.out.println("Insufficient shares.");
+                        }
+                    } else {
+                        System.out.println("Stock not found.");
+                    }
+                    break;
+                case 4:
+                    user.getPortfolio().displayPortfolio(market);
+                    System.out.println("Balance: $" + user.getBalance());
+                    break;
+                case 5:
+                    try {
+                        DataHandler.saveUser(user, "portfolio.txt");
+                        System.out.println("Data saved. Exiting...");
+                    } catch (Exception e) {
+                        System.out.println("Error saving data: " + e.getMessage());
+                    }
+                    return;
+                default:
+                    System.out.println("Invalid option.");
+            }
+        }
+    }
+}
+
+
+	
+
+
+	
+	
+ 
